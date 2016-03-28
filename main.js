@@ -20,7 +20,13 @@
 		window.speechSynthesis.getVoices()
 	}(window));
 
-	//api.ai stuff
+	var regexCheck = [{
+		entity: 'award',
+		test: new RegExp(/^(award|prize|fellowship|brag)/i)
+	}, {
+		entity: 'publication',
+		test: new RegExp(/^(publish|article|journal)/i)
+	}];
 	var accessToken = "b83accd64dca4baf81b23faebc09f20b";
 	var subscriptionKey = "b5f21b33-b598-4cfc-b458-6804a4b58133";
 	var baseUrl = "https://api.api.ai/v1/";
@@ -39,6 +45,7 @@
 			postCallback: function(){return 'Sam is an asshole';}
 		},
 		resume: {},
+		shortName: '',
 		currentSection: {
 			name: '',
 			id: ''
@@ -134,17 +141,31 @@
 		});
 	}
 
+	//this should fucking work
+	function localCheck(text) {
+		var tested = regexCheck.forEach(function(el) {
+			return {
+				entity: el.entity,
+				validity: el.test.test(text)
+			};
+		});
+		var passed = tested.filter( el => el.validity === true );
+		if(passed.length)
+			return passed;
+		return false;
+	}
+
 	function parseRequest(text) {
 		if(window.state.useApiAi) {
-			return sendToApiAi(text)
+			// any Regex tests come first to short circuit
+			// no regex matches, so send out
+			return sendToApiAi(text);
 		} else {
+			// bs for testing
 			return new Promise(function(resolve, reject) {
 				resolve({
 					result: {
-						action: 'request.image',
-						parameters: {
-							name: 'Soul'
-						}
+						action: 'request.image'
 					}
 				});
 			});
@@ -168,29 +189,51 @@
 		var message = {};
 		message.type = actionName;
 
+		//this is a hack - should come from resume.json
 		if(actionName === 'request.image') {
 			message.data = {url: 'http://www.samuelhavens.com/me.jpg'};
 
 		} else if(actionName === 'social.network') {
 			//getSocialNetwork returns obj w name, url and username or false
 			var network = getSocialNetwork(params.network);
-			var name = window.state.resume.basics.name;
+			var name = window.state.shortName;
 
-			var speak = network
-					? 'You can find ' + name + ' on ' + network.network + ' at ' + network.url
-					: name + ' did not list that network on their resume.json file.';
+			var says = network
+					? 'You can find ' + name + ' on ' + network.network + ' as <a href="' + network.url + '">' + network.username + '</a>'
+					: name + ' did not list that network on their resume.json file';
 
-			message.speak = speak;
+			message.speak = [{user: 'cvBot', says: says}];
 
+		} else if(actionName === 'request.degree') {
+			if (params.degree && params.degree !== 'graduate') {
+				//they asked for bachelors, masters, or phd by name or synonym
+				var degreeType = params.degree;
+				//this disaster checks if they have an education section listing that degree type (using string contains)
+				var school = window.state.resume.education.filter( el => ~_.lowerCase(el.studyType).indexOf(_.lowerCase(degreeType)));
+				message.speak = schoolChecker(school);
+			} else if (params.degree && params.degree === 'graduate') {
+				//they were vague about degree
+				var masterTest = new RegExp(/^(master)/i);
+				var phdTest = new RegExp(/^(ph|doctor)/i);
+				//check for phd, if not found, then check for masters
+				var school = window.state.resume.education.filter( el => phdTest.test(el.studyType) );
+				if (!school.length) {
+					school = window.state.resume.education.filter( el => masterTest.test(el.studyType) );
+				}
+				message.speak = schoolChecker(school);
+			} else {
+				//they asked about degrees but didn't specify type... hit 'em with 'em all
+				message.speak = schoolChecker(window.state.resume.education);
+			}
 		} else if (actionName === 'name.save') {
 			window.state.user.name = params.name;
-			message.speak = {user:'cvBot', says:'Hello, ' + params.name};
+			message.speak = [{user:'cvBot', says:'Hello, ' + params.name}];
 
 		} else if (actionName === 'name.get') {
 			if (window.state.user.name) {
-					message.speak = {user:'cvBot', says:'Your name is ' + window.state.user.name}
+					message.speak = [{user:'cvBot', says:'Your name is ' + window.state.user.name}];
 			} else {
-				return {type: actionName, speak: {user:'cvBot', says:'I don\'t know your name'}}
+				message.speak = [{user:'cvBot', says:'I don\'t know your name'}];
 			}
 		} else {
 			return Object.assign({}, response, {speak: {user:'cvBot', says:response.result.speech}});
@@ -198,20 +241,36 @@
 		return message;
 	}
 
-	// takes a formatted api response and outputs HTML
-	// all reponse.types should be in the same format:
-	// {speak: [{user:'cvBot', says:''},...], html:[''], data: [], prompt: {everything from state.conversation}} or something
-	// or maybe that's what should be returned...
-	function generateNewMessage(response) {
-		// console.log(response);
-		var output = {};
-		//NOTE: OUTPUT.SPEAK AND .HTML TAKE ARRAYS! SO THAT MULTIPLE THINGS CAN BE SAID
-		if (response.type === 'request.image') {
-			//say something - you got pics, so the name worked
-			output.speak = [{user:'cvBot', says:'Here\'s the handsome devil'}];
-			output.html = ['<img class="look-at-me" src="' + response.data.url + '/>'];
+	function schoolChecker(school) {
+		var name = window.state.shortName;
+		var speak = [];
+		if (school.length) {
+			school.forEach(function(inst) {
+				speak.push({user: 'cvBot', says: startSentence() + name + ' attended ' + inst.institution + ' pursuing a ' + inst.studyType + ' in ' + inst.area + '.'});
+				if (inst.endDate) {
+					var dateData = inst.endDate;
+					dateObject = new Date(Date.parse(dateData));
+					dateReadable = dateObject.toDateString();
+					speak.push({user: 'cvBot', says: name +' earned that degree on ' + dateReadable + ' with a GPA of ' + inst.gpa});
+				}
+			});
 		} else {
-			output.speak = [{user:'cvBot', says:response.speak}];
+			speak = [{user: 'cvBot', says: name + ' does not appear to have that degree.'}];
+		}
+		return speak;
+	}
+
+	// takes a formatted api response and outputs an object based on reponse.types
+	// {speak: [{user:'cvBot', says:''},...], html:[''], data: [], prompt: {everything from state.conversation}} or something
+	// WARNING OUTPUT.SPEAK AND .HTML TAKE ARRAYS! SO THAT MULTIPLE THINGS CAN BE SAID
+	function generateNewMessage(response) {
+		var output = {};
+
+		if (response.type === 'request.image') {
+			output.speak = [{user:'cvBot', says:'Here\'s the handsome devil'}];
+			output.html = ['<img class="look-at-me" src="' + response.data.url + '"/>'];
+		} else {
+			output.speak = response.speak;
 		}
 		return output;
 	}
@@ -242,9 +301,6 @@
 		}).then(function(output) {
 			console.log(output);
 			// actually answer
-			// this should be a function, addToHistory(message, user, delay)
-			// that way there is no bullshit addToUserHistory, addToCvBotHistory, etc
-			// and generateNewMessage can actually return in all cases instead of programming by side effects
 			if(output.speak)
 				output.speak.forEach( (el) => says(el.user, el.says) );
 			if(output.html)
@@ -420,6 +476,19 @@
 		return _.sample(option);
 	}
 
+	function startSentence() {
+		var option = [
+			'Well, ',
+			'',
+			'',
+			'It seems ',
+			'It looks like ',
+			'I\'m seeing that ',
+			''
+		];
+		return _.sample(option);
+	}
+
 	function isYes(phrase) {
 		return (new RegExp(/^(yes|yea|yup|yep|ya|sure|ok|y|yeah|yah)/i).test(phrase));
 	}
@@ -430,17 +499,22 @@
 	 return n;
 	}
 
+	function onResumeLoad(resume) {
+		window.state.resume = resume;
+		var name = resume.basics.name;
+		window.state.shortName = name.split(' ')[0];
+		var shortName = window.state.shortName;
+		$('#input').attr('placeholder', 'Let\'s talk about ' + name);
+		says('cvBot', 'I\'ve loaded the résumé of, and am ready to talk about, '+name+'!');
+		says('cvBot', 'For example, did you know that ' + name + ' is a ' + resume.basics.label+'?');
+		says('cvBot', 'Just ask me questions about ' + shortName + ' and I will do my best to answer them.');
+	}
+
 	//on page load, do some binding and talk to the user.
 	$(document).ready(function() {
 		//event binding
 		$("#input").keypress(handleTextInput);
 		$("#rec").click(handlePressRecord);
 		says('cvBot','Hello, my name is CV Bot', 200);//give the voice time to load
-		loadResume('http://www.samuelhavens.com/resume.json').then(function(resume) {
-			window.state.resume = resume;
-			var name = resume.basics.name;
-			says('cvBot', 'I\'ve loaded the résumé of, and am ready to talk about, '+name+'!');
-			says('cvBot', 'For example, did you know that ' + name + ' is a ' + resume.basics.label+'?');
-			says('cvBot', 'Just ask me questions about '+name+ ' and I will do my best to answer them.');
-		});
+		loadResume('http://www.samuelhavens.com/resume.json').then(onResumeLoad);
 	});
