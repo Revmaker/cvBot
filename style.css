@@ -178,6 +178,13 @@ footer #rec.recording:before{
 }
 
 /* Custom */
+.look-at-me {
+	width: 70%;
+	border-radius: 10px;
+	margin-bottom: 8px;
+	border: 5px solid #8697cb;
+}
+
 .chat{
 	display: inline-block;
 	vertical-align: bottom;

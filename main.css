@@ -1,3 +1,5 @@
+/*not used*/
+
 .mdl-card {
   width:auto;
   margin: 1em;
@@ -15,6 +17,13 @@
   padding: 10px;
   display: block;
   margin: 0 auto;
+}
+
+.look-at-me {
+  width: 70%;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 2px solid #8697cb;
 }
 
 @media screen and (min-width: 600px) {

@@ -1,6 +1,7 @@
 
 	//watch out, since this uses jQuery, it is using NONSTANDARD syntax for promises (.fail!!!)
 
+	//ES can do this? learn something every day
 	var moneyFormatter = new Intl.NumberFormat('en-US', {
 	  style: 'currency',
 	  currency: 'USD',
@@ -25,8 +26,9 @@
 	var baseUrl = "https://api.api.ai/v1/";
 	var recognition; //global speech recognition API
 
+	// Even if I'm not using React, I'm not storing state in the fucking DOM
 	var state = {
-		useApiAi: false,
+		useApiAi: true,
 		shouldSpeak: true,
 		isAwaiting: false,
 		awaiting: '',
@@ -36,6 +38,7 @@
 			who: 'user/cvBot/neutral',
 			postCallback: function(){return 'Sam is an asshole';}
 		},
+		resume: {},
 		currentSection: {
 			name: '',
 			id: ''
@@ -47,27 +50,33 @@
 		transcript: []
 	};
 
-
+	function loadResume(url) {
+		return $.get(url);
+	}
 
 	function startRecognition() {
-		recognition = new webkitSpeechRecognition();
-		recognition.onstart = function(event) {
-			//updateRec();
-			$("#rec").addClass('recording')
-		};
-		recognition.onresult = function(event) {
-			var text = "";
-		    for (var i = event.resultIndex; i < event.results.length; ++i) {
-		    	text += event.results[i][0].transcript;
-		    }
-			stopRecognition();
-			answerQuestion(text);
-		};
-		recognition.onend = function() {
-			stopRecognition();
-		};
-		recognition.lang = "en-US";
-		recognition.start();
+		if (!('webkitSpeechRecognition' in window)) {
+		  alert('Sorry, speech recognition is not available on your browser :( \n You\'ll have to type your queries.');
+		} else {
+			recognition = new webkitSpeechRecognition();
+			recognition.onstart = function(event) {
+				//updateRec();
+				$("#rec").addClass('recording')
+			};
+			recognition.onresult = function(event) {
+				var text = "";
+			    for (var i = event.resultIndex; i < event.results.length; ++i) {
+			    	text += event.results[i][0].transcript;
+			    }
+				stopRecognition();
+				answerQuestion(text);
+			};
+			recognition.onend = function() {
+				stopRecognition();
+			};
+			recognition.lang = "en-US";
+			recognition.start();
+		}
 	}
 
 	function stopRecognition() {
@@ -169,18 +178,6 @@
 			return betterCar(modelNameArray);
 		}
 
-		if(actionName === 'compare.overall') {
-			var modelNameArray = getModelNameArray(params);
-			return compareOverall(modelNameArray);
-		}
-
-		if(actionName === 'compare.attribute') {
-			var modelNameArray = getModelNameArray(params);
-			return whichIsMost(params.attribute, modelNameArray ).then(function(ans) {
-				return {type: actionName, speak: {user:'cvBot', says:'The ' + ans}};
-			});
-		}
-
 		if (actionName === 'name.save') {
 			window.state.user.name = params.name;
 			return {type: actionName, speak: {user:'cvBot', says:'Hello, ' + params.name}}
@@ -208,7 +205,7 @@
 		if (response.type === 'request.image') {
 			//say something - you got pics, so the name worked
 			output.speak = [{user:'cvBot', says:'Here\'s the handsome devil'}];
-			output.html = ['<img style="width:70%" src="http://www.samuelhavens.com/me.jpg"/>'];
+			output.html = ['<img class="look-at-me" src="http://www.samuelhavens.com/me.jpg"/>'];
 		} else {
 			output.speak = [{user:'cvBot', says:response.speak}];
 		}
@@ -347,8 +344,8 @@
 	}
 
 	function addToTranscript(user, message) {
-		// console.log(user, message);
-		if (~message.indexOf('class="thinking"')) return;
+		console.log(user, message);
+		if (message && ~message.indexOf('class="thinking"')) return;
 		window.state.transcript.push({
 			user: user,
 			message: message
@@ -425,6 +422,11 @@
 		$("#input").keypress(handleTextInput);
 		$("#rec").click(handlePressRecord);
 		says('cvBot','Hello, my name is CV Bot', 200);//give the voice time to load
-		says('cvBot','I\'m here to answer questions about a résumé. Give me a moment to load it...', 1200);
-
+		loadResume('http://www.samuelhavens.com/resume.json').then(function(resume) {
+			window.state.resume = resume;
+			var name = resume.basics.name;
+			says('cvBot', 'I\'ve loaded the résumé of, and am ready to talk about, '+name+'!');
+			says('cvBot', 'For example, did you know that ' + name + ' is a ' + resume.basics.label+'?');
+			says('cvBot', 'Just ask me questions about '+name+ ' and I will do my best to answer them.');
+		});
 	});
