@@ -107,7 +107,9 @@
 	  // Create a new instance of SpeechSynthesisUtterance.
 		var msg = new SpeechSynthesisUtterance();
 
-	  // Set the text.
+		// remove tags from text
+		text = text.replace(/(<([^>]+)>)/ig,"");
+		// Set the text
 		msg.text = text;
 
 	  // Set the attributes.
@@ -188,6 +190,7 @@
 		var params = response.params;
 		var message = {};
 		message.type = actionName;
+		message.speak = [];
 
 		//this is a hack - should come from resume.json
 		if(actionName === 'request.image') {
@@ -205,26 +208,43 @@
 			message.speak = [{user: 'cvBot', says: says}];
 
 		} else if(actionName === 'request.degree') {
+			var school;
 			if (params.degree && params.degree !== 'graduate') {
-				//they asked for bachelors, masters, or phd by name or synonym
+				//they asked for bachelors, masters, or phd by name or synonym theirof
 				var degreeType = params.degree;
 				//this disaster checks if they have an education section listing that degree type (using string contains)
-				var school = window.state.resume.education.filter( el => ~_.lowerCase(el.studyType).indexOf(_.lowerCase(degreeType)));
-				message.speak = schoolChecker(school);
+				// the ~ is just a trick to make indexOf return something truthy
+				school = window.state.resume.education.filter( el => ~_.lowerCase(el.studyType).indexOf(_.lowerCase(degreeType)));
 			} else if (params.degree && params.degree === 'graduate') {
 				//they were vague about degree
 				var masterTest = new RegExp(/^(master)/i);
 				var phdTest = new RegExp(/^(ph|doctor)/i);
 				//check for phd, if not found, then check for masters
-				var school = window.state.resume.education.filter( el => phdTest.test(el.studyType) );
+				school = window.state.resume.education.filter( el => phdTest.test(el.studyType) );
 				if (!school.length) {
 					school = window.state.resume.education.filter( el => masterTest.test(el.studyType) );
 				}
-				message.speak = schoolChecker(school);
 			} else {
 				//they asked about degrees but didn't specify type... hit 'em with 'em all
-				message.speak = schoolChecker(window.state.resume.education);
+				school = window.state.resume.education
 			}
+			message.speak = schoolChecker(school);
+
+		} else if (actionName === 'request.accolade') {
+
+			if (params.accolade === 'award') {
+				message.speak = listAwards();
+			} else if (params.accolade === 'publication') {
+				message.speak = listPublications();
+			} else {
+				//it was unclear, request clarification
+				var toSay = response.result.speech;
+				message.speak.push({user:'cvBot', says: toSay});
+			}
+
+		} else if (actionName === 'request.language') {
+			var language = params.language;
+			message.speak = doesSpeak(language);
 		} else if (actionName === 'name.save') {
 			window.state.user.name = params.name;
 			message.speak = [{user:'cvBot', says:'Hello, ' + params.name}];
@@ -235,29 +255,19 @@
 			} else {
 				message.speak = [{user:'cvBot', says:'I don\'t know your name'}];
 			}
+		} else if ( (new RegExp(/(smalltalk|unknown)/i)).test(actionName) ) {
+			//they are just bullshiting, get them on track
+			var toSay = response.result.speech || iDontKnow();
+			var name = sampleName();
+			var prod = sampleProd();
+			message.speak = [{user:'cvBot', says: toSay }];
+			message.speak.push({user:'cvBot', says: prod + name});
 		} else {
-			return Object.assign({}, response, {speak: {user:'cvBot', says:response.result.speech}});
+			// who knows how they got here, but say something just in case
+			var toSay = response.result.speech || iDontKnow();
+			message.speak = [{user:'cvBot', says: toSay }];
 		}
 		return message;
-	}
-
-	function schoolChecker(school) {
-		var name = window.state.shortName;
-		var speak = [];
-		if (school.length) {
-			school.forEach(function(inst) {
-				speak.push({user: 'cvBot', says: startSentence() + name + ' attended ' + inst.institution + ' pursuing a ' + inst.studyType + ' in ' + inst.area + '.'});
-				if (inst.endDate) {
-					var dateData = inst.endDate;
-					dateObject = new Date(Date.parse(dateData));
-					dateReadable = dateObject.toDateString();
-					speak.push({user: 'cvBot', says: name +' earned that degree on ' + dateReadable + ' with a GPA of ' + inst.gpa});
-				}
-			});
-		} else {
-			speak = [{user: 'cvBot', says: name + ' does not appear to have that degree.'}];
-		}
-		return speak;
 	}
 
 	// takes a formatted api response and outputs an object based on reponse.types
@@ -353,20 +363,95 @@
 		}, 60)
 	}
 
+
+	function publicationSampler(publication) {
+		var name = sampleName();
+		var option = [
+			'On ' + readableDate(publication.releaseDate) + ', ' + name + ' published <a href="' + publication.website + '">' + publication.name + '</a> with ' + publication.publisher + '.',
+			name + ' published <a href="' + publication.website + '">' + publication.name + '</a> on ' + readableDate(publication.releaseDate) + ' through ' + publication.publisher + '.'
+		]
+		return _.sample(option);
+	}
+
+	function awardSampler(award) {
+		var name = sampleName();
+		var option = [
+			'On ' + readableDate(award.date) + ', ' + name + ' was awarded the ' + award.title + ' award.',
+			name + ' was awarded the ' + award.title + ' award on ' + readableDate(award.date)
+		]
+		return _.sample(option);
+	}
+
+	function listPublications() {
+		var output = [];
+		window.state.resume.publications.forEach(function(publication) {
+			var msg = {};
+			msg.user = 'cvBot';
+			msg.says = publicationSampler(publication);
+			output.push(msg);
+		});
+		return output;
+	}
+
+	function listAwards() {
+		var output = [];
+		window.state.resume.awards.forEach(function(award) {
+			var msg = {};
+			msg.user = 'cvBot';
+			msg.says = awardSampler(award);
+			output.push(msg);
+		});
+		return output;
+	}
+
+	function doesSpeak(language) {
+		var output = [];
+		var msg = {};
+		var name = sampleName();
+		msg.user = 'cvBot';
+		var speaks = window.state.resume.languages.filter(function(el) {
+			console.log(el,language);
+			return _.toLower(el.language) === _.toLower(language);
+		});
+		console.log(speaks);
+		if (speaks.length) {
+			msg.says = name + ' rates their fluency at ' + speaks[0].language + ' as: "' + speaks[0].fluency + '"';
+		} else {
+			msg.says = startSentence() + ' no.';
+		}
+		msg.says = _.upperFirst(_.trim(msg.says));
+		output.push(msg);
+		return output;
+	}
+
+	// used in processing actionName = request.degree
+	// checks if there were any matching schools
+	// if so, iterate through them and add a message to speak about them
+	function schoolChecker(school) {
+		var name = window.state.shortName;
+		var speak = [];
+		if (school.length) {
+			school.forEach(function(inst) {
+				speak.push({user: 'cvBot', says: startSentence() + name + ' attended ' + inst.institution + ' pursuing a ' + inst.studyType + ' in ' + inst.area + '.'});
+				if (inst.endDate) {
+					var dateReadable = readableDate(inst.endDate);
+					speak.push({user: 'cvBot', says: name +' earned that degree on ' + dateReadable + ' with a GPA of ' + inst.gpa});
+				}
+			});
+		} else {
+			speak = [{user: 'cvBot', says: name + ' does not appear to have that degree.'}];
+		}
+		return speak;
+	}
+
+	function readableDate(yyyyMmDd) {
+		var dateObject = new Date(Date.parse(yyyyMmDd));
+		return dateObject.toDateString();
+	}
+
 	function getSocialNetwork(name) {
-		console.log(name);
-		var network = window.state.resume.basics.profiles.filter( el => el.network == name )
-		console.log(network);
+		var network = window.state.resume.basics.profiles.filter( el => el.network == name );
 		return network.length > 0 && network[0];
-	}
-
-	function setCurrentSection(section) {
-		window.state.currentSection.name = section.name;
-		window.state.currentSection.id = section.id;
-	}
-
-	function getCurrentSection() {
-		return window.state.currentSection;
 	}
 
 
@@ -397,16 +482,11 @@
 
 		var wait = typeof wait !== 'undefined' ? wait : 0;
 		var output = '<div class="msg cvBot"><div class="meta">CV Bot</div><div class="text">' + msg + '</div></div>';
-		//check if it is html or plaintext
-		var isHTML = /<[a-z][\s\S]*>/i.test(msg);
-
 		setTimeout(function() {
 			//add new stuff
 			addToHistory(output);
-			if(!isHTML) {
-				if(window.state.shouldSpeak){
-					speak(msg);
-				}
+			if(window.state.shouldSpeak){
+				speak(msg);
 			}
 		}, wait);
 		//wait a tad, then animate in the img DOM nodes you made
@@ -485,6 +565,30 @@
 			'It looks like ',
 			'I\'m seeing that ',
 			''
+		];
+		return _.sample(option);
+	}
+
+	function sampleProd() {
+		var option = [
+			'Why don\'t you ask me about ',
+			'Maybe we could switch gears to ',
+			'I only have eyes for ',
+			'Hey! You know what\'s really cool? Talking about ',
+			'Let\'s transition back to '
+		];
+		return _.sample(option);
+	}
+
+	function sampleName() {
+		var short = window.state.shortName;
+		var name = window.state.resume.basics.name;
+		var option = [
+			'the candidate',
+			short,
+			short,
+			name,
+			name
 		];
 		return _.sample(option);
 	}
