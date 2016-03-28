@@ -165,33 +165,37 @@
 	function actionHandler(response) {
 		var actionName = response.action;
 		var params = response.params;
+		var message = {};
+		message.type = actionName;
 
 		if(actionName === 'request.image') {
-			return {
-					imgData: {url: 'http://www.samuelhavens.com/me.jpg'},
-					type: actionName
-				};
-		}//end request.image
+			message.data = {url: 'http://www.samuelhavens.com/me.jpg'};
 
-		if(actionName === 'request.better') {
-			var modelNameArray = getModelNameArray(params);
-			return betterCar(modelNameArray);
-		}
+		} else if(actionName === 'social.network') {
+			//getSocialNetwork returns obj w name, url and username or false
+			var network = getSocialNetwork(params.network);
+			var name = window.state.resume.basics.name;
 
-		if (actionName === 'name.save') {
+			var speak = network
+					? 'You can find ' + name + ' on ' + network.network + ' at ' + network.url
+					: name + ' did not list that network on their resume.json file.';
+
+			message.speak = speak;
+
+		} else if (actionName === 'name.save') {
 			window.state.user.name = params.name;
-			return {type: actionName, speak: {user:'cvBot', says:'Hello, ' + params.name}}
-		}
+			message.speak = {user:'cvBot', says:'Hello, ' + params.name};
 
-		if (actionName === 'name.get') {
+		} else if (actionName === 'name.get') {
 			if (window.state.user.name) {
-					return {type: actionName, speak: {user:'cvBot', says:'Your name is ' + window.state.user.name}}
+					message.speak = {user:'cvBot', says:'Your name is ' + window.state.user.name}
 			} else {
 				return {type: actionName, speak: {user:'cvBot', says:'I don\'t know your name'}}
 			}
+		} else {
+			return Object.assign({}, response, {speak: {user:'cvBot', says:response.result.speech}});
 		}
-
-		return Object.assign({}, response, {speak: {user:'cvBot', says:response.result.speech}});
+		return message;
 	}
 
 	// takes a formatted api response and outputs HTML
@@ -205,7 +209,7 @@
 		if (response.type === 'request.image') {
 			//say something - you got pics, so the name worked
 			output.speak = [{user:'cvBot', says:'Here\'s the handsome devil'}];
-			output.html = ['<img class="look-at-me" src="http://www.samuelhavens.com/me.jpg"/>'];
+			output.html = ['<img class="look-at-me" src="' + response.data.url + '/>'];
 		} else {
 			output.speak = [{user:'cvBot', says:response.speak}];
 		}
@@ -236,12 +240,15 @@
 			return generateNewMessage(response);
 
 		}).then(function(output) {
+			console.log(output);
 			// actually answer
 			// this should be a function, addToHistory(message, user, delay)
 			// that way there is no bullshit addToUserHistory, addToCvBotHistory, etc
 			// and generateNewMessage can actually return in all cases instead of programming by side effects
-			output.speak.forEach( (el) => says(el.user, el.says) );
-			output.html.forEach( (el) => addToHistory(el) );
+			if(output.speak)
+				output.speak.forEach( (el) => says(el.user, el.says) );
+			if(output.html)
+				output.html.forEach( (el) => addToHistory(el) );
 
 		});
 	}
@@ -288,6 +295,13 @@
 			//it will just look at the state and see if it is thinking
 			$('.loading').parent().parent().slideUp(400);
 		}, 60)
+	}
+
+	function getSocialNetwork(name) {
+		console.log(name);
+		var network = window.state.resume.basics.profiles.filter( el => el.network == name )
+		console.log(network);
+		return network.length > 0 && network[0];
 	}
 
 	function setCurrentSection(section) {
