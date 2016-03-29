@@ -41,17 +41,22 @@
 			test: new RegExp(/(shut up|shutup|be quiet|stop talking)/i)
 		},
 		{
+			action: 'request.course',
+			test: new RegExp(/(course|classes|linear algebra|math|algorithms)/i)
+		},
+		{
 			action: 'request.website',
 			test: new RegExp(/(website|webiste|his site|her site|url)/i)
 		}],
-		shouldSpeak: true,
+		shouldSpeak: false,
 		isAwaiting: false,
 		awaiting: '',
 		conversation: {
 			callback: function(){return;},
 			params: [],
 			who: 'user/cvBot/neutral',
-			postCallback: function(){return 'Sam is an asshole';}
+			postCallback: function(){return;},
+			currentTopic: ''
 		},
 		resume: {},
 		shortName: '',
@@ -123,7 +128,7 @@
 
 	  // Set the attributes.
 		msg.volume = 1; //max is 1
-		msg.rate = 1.1; //max is 10 - anything above 2 is absurd
+		msg.rate = 1.03; //max is 10 - anything above 2 is absurd
 		msg.pitch = 1; //max is 2
 
 		//see https://developers.google.com/web/updates/2014/01/Web-apps-that-talk-Introduction-to-the-Speech-Synthesis-API?hl=en
@@ -202,11 +207,13 @@
 		return Object.assign({}, resp, {action: action, params: params});
 	}
 
+	function setCurrentTopic(topic) {
+		window.state.conversation.currentTopic = topic;
+	}
 
-	//really should call if not in cache
-	//then get from cache
-	//I should MEMOIZE this, if you will
-	// also this should return a STANDARDIZED OBJECT, eg {say: "", html:""} or something
+
+	// returns message, has {}.type, {}.speak
+	// side effect: sets topic
 	function actionHandler(response) {
 		var actionName = response.action;
 		var params = response.params;
@@ -214,8 +221,11 @@
 		message.type = actionName;
 		message.speak = [];
 
+		setCurrentTopic(actionName);
+
 		//this is a hack - should come from resume.json
 		if(actionName === 'request.image') {
+			setCurrentTopic('Looks');
 			message.data = {url: 'http://www.samuelhavens.com/me.jpg'};
 
 		} else if(actionName === 'social.network') {
@@ -278,6 +288,15 @@
 
 		} else if (actionName === 'request.location') {
 			message.speak = [{user:'cvBot', says: giveLocation()}];
+
+		} else if (actionName === 'request.course') {
+			var courseMap = window.state.resume.education.map(function(school) {
+				return {
+					institution: school.institution,
+					courses: school.courses
+				};
+			});
+			message.speak = courseLister(courseMap, 0);
 
 		} else if (actionName === 'shutup') {
 			toggleSpeech();
@@ -346,15 +365,17 @@
 
 			return generateNewMessage(response);
 
-		}).then(function(output) {
-			console.log(output);
+		}).then(function(message) {
 			// actually answer
-			if(output.speak)
-				output.speak.forEach( (el) => says(el.user, el.says) );
-			if(output.html)
-				output.html.forEach( (el) => addToHistory(el) );
-
+			outputer(message);
 		});
+	}
+
+	function outputer(message) {
+		if(message.speak)
+			message.speak.forEach( (el) => says(el.user, el.says) );
+		if(message.html)
+			message.html.forEach( (el) => addToHistory(el) );
 	}
 
 	// this function would be better if the switch statement always gave some output,
@@ -363,36 +384,26 @@
 	// for now though, it actually mutates the DOM and is not DRY
 	// setting isAwaiting over and over is incase we want to repeat the question...
 	function handleUserAnswer(answer) {
+		var convo = window.state.conversation;
 		switch (window.state.awaiting) {
 			case 'confirmation':
 				if(isYes(answer)) {
-					var convo = window.state.conversation;
-					if (convo.who === 'nuetral') {
-						addToHistory(convo.callback.apply(null, convo.params));
-					} else if (convo.who === 'cvBot') {
-						says('cvBot',convo.callback.apply(null, convo.params));
-					}
+					var resp = convo.callback.apply(null, convo.params);
+					//don't send it back through the cycle, short circuit
+					outputer(generateNewMessage({speak: resp}));
 					convo.postCallback();
 				} else {
 					says('cvBot',cvBotAgrees());
 					window.state.isAwaiting = false;
-					answerQuestion(answer);
-				}
-				break;
-			case 'zip':
-				var zip = getZip(answer); //either the extracted zip or false
-				if(zip) {
-					addToHistory(convo.callback(zip));
-					window.state.isAwaiting = false;
-				} else {
-					says('cvBot',iDontKnow());
-					window.state.isAwaiting = false;
+					if (answer.split[' '].length > 1) {
+						answerQuestion(answer);
+					}
 				}
 				break;
 
-			default:
-				window.state.isAwaiting = false;
-				says('cvBot',cvBotAgrees());
+				default:
+					convo.callback.apply(null, convo.params);
+					convo.postCallback();
 		}
 		setTimeout(function(){
 			//uhhh I hate manipulating the DOM. When I rewrite this in react,
@@ -428,6 +439,25 @@
 			name + ' calls ' + city + ', ' + state + ' home, for now',
 			name + ' lives in ' + city + ', ' + state
 		]);
+	}
+
+	function courseLister(courseMap, startIndex) {
+		var startIndex = typeof startIndex !== 'undefined' ? startIndex : 0;
+		var convo = window.state.conversation;
+		var name = sampleName();
+		var message = 'While at ' + courseMap[startIndex].institution + ' ' + name + ' took ' + courseMap[startIndex].courses.join(', ');
+		if (courseMap.length - 1 > startIndex) {
+			window.state.isAwaiting = true;
+			window.state.awaiting = 'confirmation';
+			convo.callback = courseLister;
+			convo.params = [courseMap, startIndex+1];
+			return [
+				{user:'cvBot', says: message},
+				{user:'cvBot', says: 'Would you like to hear the classes ' + name + ' took at ' + courseMap[startIndex+1].institution +'?'}
+			];
+		} else {
+			return [{user:'cvBot', says: message}]
+		}
 	}
 
 	function publicationSampler(publication) {
