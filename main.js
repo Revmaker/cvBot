@@ -20,13 +20,6 @@
 		window.speechSynthesis.getVoices()
 	}(window));
 
-	var regexCheck = [{
-		entity: 'award',
-		test: new RegExp(/^(award|prize|fellowship|brag)/i)
-	}, {
-		entity: 'publication',
-		test: new RegExp(/^(publish|article|journal)/i)
-	}];
 	var accessToken = "b83accd64dca4baf81b23faebc09f20b";
 	var subscriptionKey = "b5f21b33-b598-4cfc-b458-6804a4b58133";
 	var baseUrl = "https://api.api.ai/v1/";
@@ -35,6 +28,22 @@
 	// Even if I'm not using React, I'm not storing state in the fucking DOM
 	var state = {
 		useApiAi: true,
+		regexCheck: [{
+			action: 'request.phone',
+			test: new RegExp(/(phone|phpne|phonw|hpone|call him|text message|his cell|her cell|their cell|his number|her number|their number)/i)
+		},
+		{
+			action: 'request.email',
+			test: new RegExp(/(email|emial|emaik)/i)
+		},
+		{
+			action: 'shutup',
+			test: new RegExp(/(shut up|shutup|be quiet|stop talking)/i)
+		},
+		{
+			action: 'request.website',
+			test: new RegExp(/(website|webiste|his site|her site|url)/i)
+		}],
 		shouldSpeak: true,
 		isAwaiting: false,
 		awaiting: '',
@@ -108,13 +117,13 @@
 		var msg = new SpeechSynthesisUtterance();
 
 		// remove tags from text
-		text = text.replace(/(<([^>]+)>)/ig,"");
+		text = text.replace(/(<([^>]+)>)/ig,'').replace(/(http:\/\/)/ig,'');
 		// Set the text
 		msg.text = text;
 
 	  // Set the attributes.
 		msg.volume = 1; //max is 1
-		msg.rate = 1; //max is 10 - anything above 2 is absurd
+		msg.rate = 1.1; //max is 10 - anything above 2 is absurd
 		msg.pitch = 1; //max is 2
 
 		//see https://developers.google.com/web/updates/2014/01/Web-apps-that-talk-Introduction-to-the-Speech-Synthesis-API?hl=en
@@ -125,7 +134,7 @@
 	}
 
 	function toggleSpeech() {
-		window.state.shouldSpeak = !window.state.shouldSpeak;
+		window.state.shouldSpeak = false;
 	}
 
 
@@ -145,23 +154,36 @@
 
 	//this should fucking work
 	function localCheck(text) {
-		var tested = regexCheck.forEach(function(el) {
+		var tested = window.state.regexCheck.map(function(el) {
 			return {
-				entity: el.entity,
+				action: el.action,
 				validity: el.test.test(text)
 			};
 		});
-		var passed = tested.filter( el => el.validity === true );
-		if(passed.length)
-			return passed;
+		var passed = tested.filter( el => el.validity === true )[0];
+		if(passed) {
+			var response = {};
+			response.result = {};
+			response.result.action = passed.action;
+			return response;
+		}
 		return false;
 	}
 
 	function parseRequest(text) {
 		if(window.state.useApiAi) {
 			// any Regex tests come first to short circuit
-			// no regex matches, so send out
-			return sendToApiAi(text);
+			var simpleSearch = localCheck(text);
+			if (simpleSearch !== false) {
+				return new Promise(function(resolve, reject) {
+					setTimeout(function() {
+						resolve(simpleSearch);
+					}, 600);//slow it down, mr eager
+				});
+			} else {
+				// no regex matches, so send out
+				return sendToApiAi(text);
+			}
 		} else {
 			// bs for testing
 			return new Promise(function(resolve, reject) {
@@ -245,6 +267,22 @@
 		} else if (actionName === 'request.language') {
 			var language = params.language;
 			message.speak = doesSpeak(language);
+		} else if (actionName === 'request.phone') {
+			message.speak = [{user:'cvBot', says: givePhone()}];
+
+		} else if (actionName === 'request.email') {
+			message.speak = [{user:'cvBot', says: giveEmail()}];
+
+		} else if (actionName === 'request.website') {
+			message.speak = [{user:'cvBot', says: giveWebsite()}];
+
+		} else if (actionName === 'request.location') {
+			message.speak = [{user:'cvBot', says: giveLocation()}];
+
+		} else if (actionName === 'shutup') {
+			toggleSpeech();
+			message.speak = [{user:'cvBot', says:'Okay, I will stop reading messages aloud. It\'s kind of a gimmick anyway.'}];
+
 		} else if (actionName === 'name.save') {
 			window.state.user.name = params.name;
 			message.speak = [{user:'cvBot', says:'Hello, ' + params.name}];
@@ -363,6 +401,34 @@
 		}, 60)
 	}
 
+	function givePhone() {
+		var name = sampleName();
+		var phone = window.state.resume.basics.phone;
+		var phoneStripped = phone.replace(/[^0-9]/g,"");
+		return callToAction(name, 'call') + ' <a href="tel:' + phoneStripped + '">' + phone + '</a>';
+	}
+
+	function giveEmail() {
+		var name = sampleName();
+		var email = window.state.resume.basics.email;
+		return callToAction(name, 'email') + ' <a href="mailto:' + email + '">' + email + '</a>';
+	}
+
+	function giveWebsite() {
+		var url = window.state.resume.basics.website;
+		return callToAction('their website', 'visit') + ' <a href="' + url + '">' + url + '</a>';
+	}
+
+	function giveLocation() {
+		var name = sampleName();
+		var city = window.state.resume.basics.location.city;
+		var state = window.state.resume.basics.location.region;
+		return _.sample([
+			'Currently, ' + name + ' resides in ' + city + ', ' + state,
+			name + ' calls ' + city + ', ' + state + ' home, for now',
+			name + ' lives in ' + city + ', ' + state
+		]);
+	}
 
 	function publicationSampler(publication) {
 		var name = sampleName();
@@ -584,13 +650,22 @@
 		var short = window.state.shortName;
 		var name = window.state.resume.basics.name;
 		var option = [
-			'the candidate',
 			short,
-			short,
-			name,
 			name
 		];
 		return _.sample(option);
+	}
+
+	function callToAction(name, action) {
+		var phrasing = [
+			'You should ' + action + ' ' + name + ' now at',
+			'You should ' + action + ' ' + name + ' now at',
+			'Why don\'t you ' + action + ' ' + name + ' now? ',
+			'Why don\'t you ' + action + ' ' + name + ' now? ',
+			'Now is probably a good time to ' + action + ' ' + name + '.',
+			'"You may delay, but time will not." ' + _.upperFirst(action) + ' ' + name + ' now:'
+		];
+		return _.sample(phrasing);
 	}
 
 	function isYes(phrase) {
