@@ -61,6 +61,11 @@ html,body{
 	font-family: "Lato", sans-serif;
 	background: rgba(241,245,248,1);
 }
+.container {
+	max-width: 650px;
+	width: 100%;
+	margin: 0 auto;
+}
 
 section {
 	width: 100%;
@@ -125,6 +130,7 @@ footer .footer{
 	position: fixed;
 	bottom: 0;
 	width: 100%;
+	max-width: 650px;
     background: rgba(241,245,248,0.90);
     padding: 10px;
     box-shadow: 0 0 20px rgba(0,0,0,.09);
