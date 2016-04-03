@@ -188,7 +188,8 @@ footer #rec.recording:before{
 	width: 70%;
 	border-radius: 10px;
 	margin-bottom: 8px;
-	border: 5px solid #8697cb;
+	border: 5px solid;
+	border-color: rgba(0,0,0,0.5);
 }
 
 .chat{
@@ -223,11 +224,11 @@ footer #rec.recording:before{
     min-height: 30px;
 }
 .msg.cvBot .text{
-	background-color: #f1c40f;
+	background-color: #2ecc71;
 	margin-right: 40px;
 }
 .msg.user .text{
-	background-color: #2ecc71;
+	background-color: #f1c40f;
 	margin-left: 40px;
 }
 .msg .text:before{
@@ -242,11 +243,11 @@ footer #rec.recording:before{
 }
 .msg.cvBot .text:before{
 	float: left;
-	border-bottom: 10px solid #f1c40f;
+	border-bottom: 10px solid #2ecc71;
 }
 .msg.user .text:before{
 	float: right;
-	border-bottom: 10px solid #2ecc71;
+	border-bottom: 10px solid #f1c40f;
 }
 
 /* click blocker */

@@ -30,7 +30,7 @@ var state = {
 		test: new RegExp(/(email|emial|emaik)/i)
 	}, {
 		action: 'shutup',
-		test: new RegExp(/(shut up|shutup|be quiet|stop talking)/i)
+		test: new RegExp(/(shut up|shutup|be quiet|stop talking|toggle speech)/i)
 	}, {
 		action: 'request.course',
 		test: new RegExp(/(course|classes|linear algebra|math|algorithms)/i)
@@ -130,12 +130,18 @@ function speak(text) {
 		return voice.name == 'Google US English';
 	})[0];
 
+	if (!msg.voice) {
+		speechSynthesis.getVoices().filter(function (voice) {
+			return voice.name == 'Daniel';
+		})[0];
+	}
+
 	// Queue this utterance.
 	window.speechSynthesis.speak(msg);
 }
 
 function toggleSpeech() {
-	window.state.shouldSpeak = false;
+	window.state.shouldSpeak = !window.state.shouldSpeak;
 }
 
 function sendToApiAi(text) {
@@ -291,7 +297,10 @@ function actionHandler(response) {
 		message.speak = courseLister(courseMap, 0);
 	} else if (actionName === 'shutup') {
 		toggleSpeech();
-		message.speak = [{ user: 'cvBot', says: 'Okay, I will stop reading messages aloud. It\'s kind of a gimmick anyway.' }];
+		var says = window.state.shouldSpeak
+						 ? 'I see you missed my dulcimer tones.'
+						 : 'Okay, I will stop reading messages aloud. It\'s kind of a gimmick anyway.';
+		message.speak = [{ user: 'cvBot', says: says }];
 	} else if (actionName === 'name.save') {
 		window.state.user.name = params.name;
 		message.speak = [{ user: 'cvBot', says: 'Hello, ' + params.name }];
@@ -668,4 +677,5 @@ $(document).ready(function () {
 	$("#rec").click(handlePressRecord);
 	says('cvBot', 'Hello, my name is CV Bot', 200); //give the voice time to load
 	loadResume('http://www.samuelhavens.com/resume.json').then(onResumeLoad);
+	$('#input').focus();
 });
