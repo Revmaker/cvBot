@@ -9,6 +9,11 @@ function getOrdinal(n) {
 	return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+//get GET params
+function getGetParam() {
+	return location.search.split('r=')[1] || 'http://samuelhavens.com/resume.json';
+}
+
 //load all voices
 (function (window) {
 	window.speechSynthesis.getVoices();
@@ -676,6 +681,6 @@ $(document).ready(function () {
 	$("#input").keypress(handleTextInput);
 	$("#rec").click(handlePressRecord);
 	says('cvBot', 'Hello, my name is CV Bot', 200); //give the voice time to load
-	loadResume('http://www.samuelhavens.com/resume.json').then(onResumeLoad);
+	loadResume(getGetParam()).then(onResumeLoad);
 	$('#input').focus();
 });
