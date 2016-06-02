@@ -11,7 +11,7 @@ function getOrdinal(n) {
 
 //get GET params
 function getGetParam() {
-	return location.search.split('r=')[1] || 'http://samuelhavens.com/resume.json';
+	return location.search.split('r=')[1] || 'http://samhavens.github.io/site/resume.json';
 }
 
 //load all voices
@@ -43,6 +43,32 @@ var state = {
 		action: 'request.website',
 		test: new RegExp(/(website|webiste|his site|her site|url)/i)
 	}],
+	skillsMap: [//this is a reverse map of what is going on api.ai
+		{
+			name: 'statistical tools',
+			skills: ['R', 'SAS']
+		},
+		{
+			name: 'devops',
+			skills: ["devops","DevOps","dev ops","aws","heroku","google cloud","linux","bash","apache","nginx","chef","puppet","ansible"]
+		},
+		{
+			name: 'web developer',
+			skills: ["webdev","web developer","html/css","html/css/js","jquery","webkit","gulp","grunt","web development","developing for mobile web","responsive design","responsive mobile","responsive"]
+		},
+		{
+			name: 'nosql',
+			skills: ["nosql","mean","mongo","mongodb","cassandra","dynamodb","monetdb","hbase","cloudata","elasticsearch","couchbase","couchdb","pouchdb","rethinkdb","sequoiadb","redis","leveldb","berkeleydb"]
+		},
+		{
+			name: 'angular',
+			skills: ["angular","angular js","angular.js","angular1","angular1.x","angular2"]
+		},
+		{
+			name: 'php frameworks',
+			skills: ["php-frameworks","php framework","yii","yii2","laravel","symphony"]
+		},
+	],
 	shouldSpeak: false,
 	isAwaiting: false,
 	awaiting: '',
@@ -76,7 +102,7 @@ function loadResume(url) {
 
 function startRecognition() {
 	if (!('webkitSpeechRecognition' in window)) {
-		alert('Sorry, speech recognition is not available on your browser :( \n You\'ll have to type your queries.');
+		console.log('Sorry, speech recognition is not available on your browser :( \n You\'ll have to type your queries. LIFE IS SUFFERING');
 	} else {
 		recognition = new webkitSpeechRecognition();
 		recognition.onstart = function (event) {
@@ -212,7 +238,8 @@ function parseRequest(text) {
 function formatParsed(resp) {
 	var action = resp.result.action;
 	var params = resp.result.parameters;
-	return Object.assign({}, resp, { action: action, params: params });
+	var query  = resp.result.resolvedQuery
+	return Object.assign({}, resp, { action: action, params: params, query: query });
 }
 
 function setCurrentTopic(topic) {
@@ -224,6 +251,7 @@ function setCurrentTopic(topic) {
 function actionHandler(response) {
 	var actionName = response.action;
 	var params = response.params;
+	var originalQuery = response.query;
 	var message = {};
 	message.type = actionName;
 	message.speak = [];
@@ -233,7 +261,7 @@ function actionHandler(response) {
 	//this is a hack - should come from resume.json
 	if (actionName === 'request.image') {
 		setCurrentTopic('Looks');
-		message.data = { url: 'http://www.samuelhavens.com/me.jpg' };
+		message.data = { url: window.state.resume.basics.picture };
 	} else if (actionName === 'social.network') {
 		//getSocialNetwork returns obj w name, url and username or false
 		var network = getSocialNetwork(params.network);
@@ -315,6 +343,48 @@ function actionHandler(response) {
 		} else {
 			message.speak = [{ user: 'cvBot', says: 'I don\'t know your name' }];
 		}
+	} else if (actionName === 'request.skill') {
+		// look in 6 places: skills.names, skills.keywords, work.summary, work.highlights, projects.summary, projects.highlights
+		// if found in skills.name, return skills.keywords, and if one keyword matches, return them all and the name.
+		// if found in work or projects, return the containing sentence. If they want to know more, lead them through that whole work[i] or projects[i]
+		// if not found (or if no params.skill), check the state.skillsMap for skillsMap[i].name to match the returned skill,
+		// and an element of skillsMap[i].skills is contained in the originalQuery. If a skill is found, use that as the skill
+		message.speak = [];
+		var skill = params.skill;
+		console.log(response, params.skill, originalQuery);
+
+		if (skill) {// NEED TO WRITE FINDSKILL()!
+			['skills', 'work', 'projects'].forEach(function(section) {
+				message.speak.push(findSkill(section, skill));
+			});
+		} else if (skill = queryContainsTopic(originalQuery, skill) !== false) {//NEED TO WRITE queryContainsTopic()!
+			['skills', 'work', 'projects'].forEach(function(section) {
+				message.speak.push(findSkill(section, skill));
+			});
+			// check window.state.skillsMap for matching name
+			// check for matching skill, then do findSkill as above
+		} else if (skill = queryContainsSkill(originalQuery) !== false) {//WRITE THIS FUNCTION
+			['skills', 'work', 'projects'].forEach(function(section) {
+				message.speak.push(findSkill(section, skill));
+			});// Straight up regex match any skill from window.state.skillsMap[i].skills
+		} else {
+			console.log('4');
+			message.speak.push({ user: 'cvBot', says: 'I can\'t find that skill. Would you like to see ' + window.state.shortName + '\'s skill\'s section?'});
+			window.state.isAwaiting = true;
+			window.state.awaiting = 'confirmation';
+			window.state.conversation.callback = function() {
+				return window.state.resume.skills.map(function(skill) {
+					return {
+						user: 'cvBot',
+						says: skill.name + ' - level: ' + skill.level + '. Topics include ' + skill.keywords.join(', ') + '.'
+					};
+				});
+			};
+			window.state.conversation.postCallback = function() {
+				window.state.isAwaiting = false;
+			};
+		}
+console.log(message);
 	} else if (new RegExp(/(smalltalk|unknown)/i).test(actionName)) {
 		//they are just bullshiting, get them on track
 		var toSay = response.result.speech || iDontKnow();
@@ -329,6 +399,38 @@ function actionHandler(response) {
 	}
 	return message;
 }
+//MOVE
+function findSkill(section, skill) {
+	var name = window.state.shortName;
+	if (section === 'skills') {
+		var skillsName = window.state.resume.skills.filter(function(el) {
+			return el.keywords.indexOf(_.upperFirst(skill)) !== -1;
+		});
+		var skillsKeyword = window.state.resume.skills.filter(function(el) {
+			return el.name === skill;
+		});
+		if (skillsName.length) {
+			return section.map(function(skill) {
+				return {
+					user: 'cvBot',
+					says: skill.name + ': ' + skill.level + ' - ' + skill.keywords.join(', ') + '.'
+				};
+			});
+		} else if ()
+	}
+	return {
+		user: 'cvBot',
+		says: window.state.shortName + ' knows ' + skill + '!'
+	};
+}
+
+function queryContainsTopic(originalQuery, skill) {
+	return false;
+}
+
+function queryContainsSkill(originalQuery) {
+	return false;
+}
 
 // takes a formatted api response and outputs an object based on reponse.types
 // {speak: [{user:'cvBot', says:''},...], html:[''], data: [], prompt: {everything from state.conversation}} or something
@@ -337,8 +439,12 @@ function generateNewMessage(response) {
 	var output = {};
 
 	if (response.type === 'request.image') {
-		output.speak = [{ user: 'cvBot', says: 'Here\'s the handsome devil' }];
-		output.html = ['<img class="look-at-me" src="' + response.data.url + '"/>'];
+		if (response.data && response.data.url) {
+			output.speak = [{ user: 'cvBot', says: 'Here\'s the handsome devil' }];
+			output.html = ['<img class="look-at-me" src="' + response.data.url + '"/>'];
+		} else {
+			output.speak = [{ user: 'cvBot', says: window.state.shortName + ' did not provide a picture in their resume.json' }];
+		}
 	} else {
 		output.speak = response.speak;
 	}
@@ -553,8 +659,8 @@ function addToHistory(message) {
 	$(".chat").animate({
 		scrollTop: $('.chat').prop("scrollHeight")
 	}, {
-		duration: 1000,
-		easing: "swing"
+		duration: 400,
+		easing: "linear"
 	});
 }
 

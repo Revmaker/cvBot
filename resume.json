@@ -1,0 +1,159 @@
+{
+  "basics": {
+    "email": "samhavens@gmail.com",
+    "name": "Sam Havens",
+    "label": "Developer at CarLabs",
+    "phone": "(818) 590-0484",
+    "website": "http://samuelhavens.com",
+    "picture": "ttp://www.samuelhavens.com/me.jpg",
+    "summary": "I have been programming for two years, primarily in JavaScript. Currently, I am super into ES6, React, and Redux. But I love designing with Sketch, making visualizations in d3.js, or knocking something quick and dirty out in PHP. In my spare time I read about Javascript and chatbots and build them. I think conversational UIs are the future and am super excited to work on them.\n\nI care a lot about education, and still teach some math whenever I can. As a board member, I also help to guide Topanga Mountain School.",
+    "location": {
+      "address": "1651 Old Topanga Canyon Road",
+      "postalCode": "90290",
+      "city": "Topanga",
+      "countryCode": "US",
+      "region": "California"
+    },
+    "profiles": [{
+      "network": "Twitter",
+      "username": "sam_havens",
+      "url": "https://twitter.com/sam_havens"
+    },
+    {
+      "network": "Medium",
+      "username": "samhavens",
+      "url": "https://medium.com/@samhavens"
+    },
+    {
+      "network": "GitHub",
+      "username": "samhavens",
+      "url": "https://github.com/samhavens"
+    },
+    {
+      "network": "LinkedIn",
+      "username": "samhavens",
+      "url": "https://www.linkedin.com/in/samhavens"
+    }]
+  },
+  "skills": [
+    {
+      "name": "Web Development",
+      "level": "Advanced",
+      "keywords": ["JavaScript","ES6","Node","Express","React","d3.js","PHP","Yii/2","jQuery","MySQL","HTLM/CSS","CSS3","SASS","Webkit","Gulp"]
+    },
+    {
+      "name": "Chat UI",
+      "level": "Beginner",
+      "keywords": ["API.ai","Botkit","Slack API"]
+    },
+    {
+      "name": "DevOps",
+      "level": "Intermediate",
+      "keywords": ["AWS","Heroku","Linux","Apache"]
+    },
+    {
+      "name": "Other Languages",
+      "level": "Beginner - Intermediate",
+      "keywords": ["Python","Ruby","BASH"]
+    },
+    {
+      "name": "Design",
+      "level": "Intermediate",
+      "keywords": ["Invision","Proto.io","Sketch","Responsive Design"]
+    },
+    {
+      "name": "Education",
+      "level": "Advanced",
+      "keywords": ["Presenting","Curriculum Design","Training","Tutoring","Mentoring"]
+    }
+  ],
+  "work": [
+    {
+      "company": "CarLabs",
+      "position": "Web Developer",
+      "website": "http://carlabs.com",
+      "startDate": "2014-04-01",
+      "summary": "I am a full-stack developer, working on everything from the database (MySQL), to backend code (a mixture of PHP on Yii2 and Express JS), to the front-end, where I modernized our build and deploy process by introducing Gulp.js and then Webpack. As one of two full-time developers, I have to make decisions about design, architecture, and libraries and live with those choices. I pitch projects internally, design, prototype, and build them using tools that include: Vanilla JavaScript, ES6, React, Redux, d3.js, jQuery, lodash, Bootstrap, Material-UI, Material Design Lite. I end up doing a lot of gluing-together of various APIs, and the last API I helped design is really badass.",
+      "highlights": [
+        "Built a lead-scrubbing tool using PHP and MySQL that scored leads using a statistical model.",
+        "Made a research tool using Yii, MySQL, jQuery and d3.js that updates charts in realtime in response to user preferences.",
+        "Designed and built a mobile web app using Node, React, ES6, Webpack, and MaterialUI.",
+        "Modernized front-end build process to use Webpack and ES6.",
+        "Pitched product design which has become the focus of the company."
+      ]
+    },
+    {
+      "company": "Topanga Mountain School",
+      "position": "Board Member and Teacher",
+      "website": "http://www.topangamountainschool.org",
+      "startDate": "2007-08-01",
+      "summary": "I was a full-time math and science teacher from 2007-2014. I trained new hires, designed curricula, and constantly improved my methods by incorporating new strategies and technologies. Anecdotally, alumni performance and engagement in math and science at the high school and college level improved during my tenure, but this is hard to quantify.\n\nAs a board member, I work to increase our (already strong) employee retention, automate processes for teachers and administrators, and find new sources of funding for innovative programs.",
+      "highlights": [
+        "Introduced Khan Academy to the math department in 2009, which improved instruction by making feedback instantaneous.",
+        "Ran the programming club, which regularly had attendance of over 10% of the student body, with a near even gender split.",
+        "Brought programming into the math program by adding a unit on Ruby to the Advanced Algebra class.",
+        "Modernized the focus of the statistics unit by utilizing Google Sheets and Tuva Labs.",
+        "Researched and implemented new employee benefits program."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "California State University-Northridge",
+      "area": "Mathematics",
+      "studyType": "Master of Science",
+      "startDate": "2011-01-01",
+      "gpa": "4.0",
+      "courses": ["Topology","Advanced Abstract Algebra","Mathematical Modeling","Calculus on Manifolds","Complex Analysis"],
+      "endDate": "2013-05-21"
+    },
+    {
+      "institution": "University of California, Santa Barbara",
+      "area": "Physics",
+      "studyType": "Bachelor’s Degree",
+      "startDate": "2002-01-01",
+      "gpa": "3.1",
+      "courses": ["Advanced Linear Algebra","Tensor Analysis","Quantum Mechanics","Advanced Mechanics","Communicating Science to the Public"],
+      "endDate": "2006-06-15"
+    }
+  ],
+  "awards": [{
+    "title": "Bianchi Outstanding Graduate Student",
+    "date": "2012-05-21",
+    "awarder": "California State University Northridge",
+    "summary": "Awarded to one graduate student per year in the College of Science for outstanding academic and research performance."
+  },
+  {
+    "title": "IRIS Fellow",
+    "date": "2012-09-01",
+    "awarder": "Interdisciplinary Research Institute for the Sciences at CSUN",
+    "summary": "For research in mathematical physics."
+  },
+  {
+    "title": "LEAPS Fellow",
+    "date": "2006-10-01",
+    "awarder": "California Nanosystems Institute",
+    "summary": "Helped communicate science to the public by running the science club at local middle schools."
+  }],
+  "publications": [{
+    "name": "Relative velocities, geometry, and expansion of space",
+    "publisher": "NOVA",
+    "releaseDate": "2012-10-11",
+    "website": "http://arxiv.org/abs/1210.3161",
+    "summary": "What does it mean to say that space expands? One approach to this question is the study of relative velocities. In this context, a non local test particle is 'superluminal' if its relative velocity exceeds the local speed of light of the observer. The existence of superluminal relative velocities of receding test particles, in a particular cosmological model, suggests itself as a possible criterion for expansion of space in that model. In this point of view, superluminal velocities of distant receding galaxy clusters result from the expansion of space between the observer and the clusters. However, there is a fundamental ambiguity that must be resolved before this approach can be meaningful. The notion of relative velocity of a nonlocal object depends on the choice of coordinates, and this ambiguity suggests the need for coordinate independent definitions. In this work, we review four (inequivalent) geometrically defined and universal notions of relative velocity: Fermi, kinematic, astrometric, and spectroscopic relative velocities. We apply this formalism to test particles undergoing radial motion relative to comoving observers in expanding Robertson-Walker cosmologies, and include previously unpublished results on Fermi coordinates for a class of inflationary cosmologies. We compare relative velocities to each other, and show how pairs of them determine geometric properties of the spacetime, including the scale factor with sufficient data. Necessary and sufficient conditions are given for the existence of superluminal recessional Fermi speeds in general Robertson-Walker cosmologies. We conclude with a discussion of expansion of space."
+  }],
+  "languages": [
+    {
+      "language": "Spanish",
+      "fluency": "I get by"
+    },
+    {
+      "language": "English",
+      "fluency": "Native speaker"
+    },
+    {
+      "language": "French",
+      "fluency": "Minimal"
+    }
+  ]
+}
