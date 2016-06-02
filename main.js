@@ -419,7 +419,7 @@ function findSkill(section, skill) {
 					says: skill.name + ': ' + skill.level + ' - ' + skill.keywords.join(', ') + '.'
 				};
 			});
-		} else if ()
+		} else if (false) {}
 	}
 	return {
 		user: 'cvBot',
