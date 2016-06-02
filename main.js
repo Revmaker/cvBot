@@ -97,7 +97,10 @@ var state = {
 };
 
 function loadResume(url) {
-	return $.get(url);
+	//return $.get(url);
+	// CORS problems with resume.json hosted on github
+	// for now just use mine
+	return $.get('resume.json');
 }
 
 function startRecognition() {
